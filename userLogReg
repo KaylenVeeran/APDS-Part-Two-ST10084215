@@ -1,0 +1,53 @@
+const mongoose = require('mongoose');
+
+const userSchema = new mongoose.Schema({
+    username: String,
+    email: String,
+    password: String, // The hashed password will be stored here
+});
+
+const User = mongoose.model('User', userSchema);
+
+const bcrypt = require('bcrypt');
+
+app.post('/register', async (req, res) => {
+    const { username, email, password } = req.body;
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create a new user document and save it to the database
+    const newUser = new User({ username, email, password: hashedPassword });
+    await newUser.save();
+
+    res.status(201).json({ message: 'User registered successfully' });
+});
+
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+
+    // Find the user by email
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    // Compare the entered password with the hashed password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+        return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    const token = generateToken(user); 
+
+    res.json({ token });
+});
+
+const jwt = require('jsonwebtoken');
+
+function generateToken(user) {
+    const payload = { id: user._id, email: user.email };
+    return jwt.sign(payload, 'MySuperSecretKeyForJWTs2023!', { expiresIn: '1h' }); 
+}
